@@ -901,8 +901,8 @@ def create_session(email: str, days_valid: int = SESSION_DAYS) -> None:
     remember_token = make_remember_token(email, days_valid=days_valid)
 
     cm = cookie_manager()
-    cm.set("remember_token", remember_token, expires_at=expires, key="set_remember_token")
-    cm.set("remember_email", email, expires_at=expires, key="set_remember_email")
+    cm.set("remember_token", remember_token, expires_at=expires)
+    cm.set("remember_email", email, expires_at=expires)
 
     st.session_state["user_email"] = email
     st.session_state["_cookie_bootstrap_done"] = True
@@ -912,9 +912,8 @@ def delete_session() -> None:
     expired = datetime.utcnow() - timedelta(days=1)
     cm = cookie_manager()
 
-    cm.set("remember_token", "", expires_at=expired, key="clear_remember_token")
-    cm.set("remember_email", "", expires_at=expired, key="clear_remember_email")
-    cm.set("session_id", "", expires_at=expired, key="clear_session_id")
+    cm.delete("remember_token")
+    cm.delete("remember_email")
 
     st.session_state["_cookie_bootstrap_done"] = True
 
@@ -926,11 +925,12 @@ def restore_session_from_cookie() -> None:
     if st.session_state.user_email:
         return
 
+    cm = cookie_manager()
+
     if "_cookie_bootstrap_done" not in st.session_state:
         st.session_state["_cookie_bootstrap_done"] = True
         st.rerun()
 
-    cm = cookie_manager()
     token = cm.get("remember_token")
 
     if not token:
