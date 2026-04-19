@@ -66,7 +66,7 @@ RESET_COOLDOWN_SEC = 45
 # ============================================================
 def cookie_manager() -> stx.CookieManager:
     if "_cookie_manager" not in st.session_state:
-        st.session_state["_cookie_manager"] = stx.CookieManager(key="cookie_manager_v5")
+        st.session_state["_cookie_manager"] = stx.CookieManager()
     return st.session_state["_cookie_manager"]
 
 
@@ -912,8 +912,8 @@ def delete_session() -> None:
     expired = datetime.utcnow() - timedelta(days=1)
     cm = cookie_manager()
 
-    cm.delete("remember_token")
-    cm.delete("remember_email")
+    cm.set("remember_token", "", expires_at=expired)
+    cm.set("remember_email", "", expires_at=expired)
 
     st.session_state["_cookie_bootstrap_done"] = True
 
