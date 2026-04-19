@@ -37,8 +37,8 @@ def main():
     fake_df = pd.read_csv(FAKE_PATH)
     true_df = pd.read_csv(TRUE_PATH)
 
-    fake_df["label"] = 1
-    true_df["label"] = 0
+    fake_df["label"] = 0
+    true_df["label"] = 1
 
     df = pd.concat([fake_df, true_df], ignore_index=True)
 
