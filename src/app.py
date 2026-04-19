@@ -9,6 +9,8 @@ import string
 import sqlite3
 import hashlib
 import secrets as pysecrets
+import base64
+import json
 from pathlib import Path
 from datetime import datetime, timedelta
 
@@ -77,7 +79,56 @@ def get_app_secret() -> str:
     if not secret or len(str(secret)) < 20:
         raise RuntimeError("Missing or weak APP_SECRET in .streamlit/secrets.toml")
     return str(secret)
+def make_remember_token(email: str, days_valid: int = SESSION_DAYS) -> str:
+    expires = int((datetime.utcnow() + timedelta(days=days_valid)).timestamp())
+    payload = {
+        "email": email.lower().strip(),
+        "exp": expires,
+    }
 
+    payload_json = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+    secret = get_app_secret().encode("utf-8")
+
+    sig = hmac.new(secret, payload_json.encode("utf-8"), hashlib.sha256).hexdigest()
+
+    token_obj = {
+        "payload": payload,
+        "sig": sig,
+    }
+
+    token_json = json.dumps(token_obj, separators=(",", ":"))
+    return base64.urlsafe_b64encode(token_json.encode("utf-8")).decode("utf-8")
+
+
+def verify_remember_token(token: str) -> Optional[str]:
+    try:
+        token_json = base64.urlsafe_b64decode(token.encode("utf-8")).decode("utf-8")
+        token_obj = json.loads(token_json)
+
+        payload = token_obj["payload"]
+        sig = token_obj["sig"]
+
+        payload_json = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+        secret = get_app_secret().encode("utf-8")
+
+        expected_sig = hmac.new(
+            secret,
+            payload_json.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+        if not hmac.compare_digest(sig, expected_sig):
+            return None
+
+        exp = int(payload["exp"])
+        if int(datetime.utcnow().timestamp()) > exp:
+            return None
+
+        email = str(payload["email"]).lower().strip()
+        return email if get_user(email) else None
+
+    except Exception:
+        return None
 
 def smtp_config() -> Dict[str, str]:
     return {
@@ -844,88 +895,26 @@ def update_password(email: str, new_password: str) -> None:
 # Sessions / auto-login
 # ============================================================
 def create_session(email: str, days_valid: int = SESSION_DAYS) -> None:
-    sid = str(uuid.uuid4())
+    email = email.lower().strip()
     expires = datetime.utcnow() + timedelta(days=days_valid)
 
-    conn = db_conn()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT OR REPLACE INTO sessions (session_id, email, expires_at) VALUES (?, ?, ?)",
-        (sid, email.lower().strip(), expires.isoformat()),
-    )
-    conn.commit()
-    conn.close()
+    remember_token = make_remember_token(email, days_valid=days_valid)
 
     cm = cookie_manager()
-    cm.set("session_id", sid, expires_at=expires)
+    cm.set("remember_token", remember_token, expires_at=expires)
+    cm.set("remember_email", email, expires_at=expires)
 
-    st.session_state["user_email"] = email.lower().strip()
+    st.session_state["user_email"] = email
     st.session_state["_cookie_bootstrap_done"] = True
 
 
-def get_session_email() -> Optional[str]:
-    cm = cookie_manager()
-    sid = cm.get("session_id")
-
-    if not sid:
-        return None
-
-    conn = db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT email, expires_at FROM sessions WHERE session_id=?", (sid,))
-    row = cur.fetchone()
-    conn.close()
-
-    if not row:
-        cm.set(
-            "session_id",
-            "",
-            expires_at=datetime.utcnow() - timedelta(days=1),
-        )
-        return None
-
-    email, expires_at = row
-
-    try:
-        if datetime.utcnow() > datetime.fromisoformat(expires_at):
-            conn = db_conn()
-            cur = conn.cursor()
-            cur.execute("DELETE FROM sessions WHERE session_id=?", (sid,))
-            conn.commit()
-            conn.close()
-
-            cm.set(
-                "session_id",
-                "",
-                expires_at=datetime.utcnow() - timedelta(days=1),
-            )
-            return None
-    except Exception:
-        cm.set(
-            "session_id",
-            "",
-            expires_at=datetime.utcnow() - timedelta(days=1),
-        )
-        return None
-
-    return email
-
-
 def delete_session() -> None:
-    sid = cookie_manager().get("session_id")
+    expired = datetime.utcnow() - timedelta(days=1)
+    cm = cookie_manager()
 
-    if sid:
-        conn = db_conn()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM sessions WHERE session_id=?", (sid,))
-        conn.commit()
-        conn.close()
-
-    cookie_manager().set(
-        "session_id",
-        "",
-        expires_at=datetime.utcnow() - timedelta(days=1),
-    )
+    cm.set("remember_token", "", expires_at=expired)
+    cm.set("remember_email", "", expires_at=expired)
+    cm.set("session_id", "", expires_at=expired)
 
     st.session_state["_cookie_bootstrap_done"] = True
 
@@ -941,16 +930,19 @@ def restore_session_from_cookie() -> None:
         st.session_state["_cookie_bootstrap_done"] = True
         st.rerun()
 
-    auto_email = get_session_email()
+    cm = cookie_manager()
+    token = cm.get("remember_token")
 
-    if auto_email:
-        auto_email = (auto_email or "").lower().strip()
+    if not token:
+        return
 
-        if get_user(auto_email):
-            st.session_state.user_email = auto_email
-        else:
-            delete_session()
-            st.session_state.user_email = None
+    email = verify_remember_token(token)
+
+    if email:
+        st.session_state.user_email = email
+    else:
+        delete_session()
+        st.session_state.user_email = None
 
 
 # ============================================================
