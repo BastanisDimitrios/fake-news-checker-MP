@@ -936,8 +936,7 @@ def restore_session_from_cookie() -> None:
     if st.session_state.user_email:
         return
 
-    cm = cookie_manager()
-    token = cm.get("remember_token")
+    token = cookie_manager().get("remember_token")
 
     if not token:
         return
@@ -1467,12 +1466,11 @@ def auth_gate() -> bool:
             )
             st.write("")
 
-            cm = cookie_manager()
-            token = cm.get("remember_token") or ""
+            token = cookie_manager().get("remember_token") or ""
             remembered_email = verify_remember_token(token) if token else ""
 
-            if remembered_email and not st.session_state.get("auth_login_email"):
-              st.session_state["auth_login_email"] = remembered_email
+            if remembered_email and "auth_login_email" not in st.session_state:
+                st.session_state["auth_login_email"] = remembered_email
 
             email = st.text_input(
                   "Email",
