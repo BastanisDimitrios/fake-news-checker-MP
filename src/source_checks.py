@@ -4,11 +4,34 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
 REQUEST_TIMEOUT = 10
-HEADERS = {"User-Agent": "Mozilla/5.0"}
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive",
+}
 
 
 def fetch_html(url: str) -> str:
-    response = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+    session = requests.Session()
+    session.headers.update(HEADERS)
+
+    response = session.get(url, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+
+    if response.status_code == 403:
+        alt_url = url
+        if url.startswith("https://www."):
+            alt_url = url.replace("https://www.", "https://", 1)
+        elif url.startswith("http://www."):
+            alt_url = url.replace("http://www.", "http://", 1)
+
+        if alt_url != url:
+            response = session.get(alt_url, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+
     response.raise_for_status()
     return response.text
 
