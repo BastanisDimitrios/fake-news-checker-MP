@@ -1577,7 +1577,7 @@ def auth_gate() -> bool:
                                 st.success("Verification code sent successfully. Please check your inbox.")
                             except Exception as e:
                                 st.error("Email delivery failed. Please try again later or contact support.")
-                                st.code(str(e))
+                                
                         else:
                             st.error("SMTP is not configured, so password reset email is unavailable.")
 
