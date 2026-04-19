@@ -1797,6 +1797,12 @@ def page_checker(model, vectorizer) -> None:
                     st.error(
                         f"This article falls into the {band.lower()} range and may contain misleading content."
                     )
+                
+                st.info(
+                    "Institutional websites such as universities, government domains, or research organizations "
+                    "may not always follow standard news article structures. As a result, the system may return "
+                    "moderate or lower credibility scores even when the source itself is trustworthy."
+                )
 
                 report_txt = build_text_report(
                     mode="TEXT",
