@@ -1438,6 +1438,11 @@ def auth_gate() -> bool:
         if "auth_view" not in st.session_state:
             st.session_state.auth_view = "Login"
 
+        if st.session_state.get("go_to_login"):
+            st.session_state["auth_view"] = "Login"
+            st.session_state["go_to_login"] = False
+            st.session_state["register_success"] = True
+
         auth_view = st.radio(
             "Account",
             ["Login", "Register", "Forgot password"],
@@ -1448,6 +1453,9 @@ def auth_gate() -> bool:
 
         st.markdown("</div>", unsafe_allow_html=True)
         st.write("")
+        if st.session_state.get("register_success"):
+          st.success("Account created successfully. You can now log in.")
+          st.session_state["register_success"] = False
 
         if auth_view == "Login":
             st.markdown(
@@ -1508,29 +1516,26 @@ def auth_gate() -> bool:
             pw3 = st.text_input("Confirm password", type="password", key="auth_reg_pw2")
 
             if st.button("Create account", type="primary", use_container_width=True, key="auth_reg_btn"):
-                rate_limit_gate("register")
-                email2_norm = (email2 or "").lower().strip()
+              rate_limit_gate("register")
+              email2_norm = (email2 or "").lower().strip()
 
-                if not email2_norm or "@" not in email2_norm:
-                    st.error("Please enter a valid email.")
-                elif len((pw2 or "").strip()) < 6:
-                    st.error("Password must be at least 6 characters.")
-                elif pw2 != pw3:
-                    st.error("Passwords do not match.")
-                else:
-                    try:
-                        register_user(email2_norm, pw2, display_name=display)
-                        st.success("Account created successfully. You can now log in.")
-                        st.session_state["go_to_login"] = True
-                        st.rerun()
-                    except sqlite3.IntegrityError:
-                        st.error("This email is already registered.")
-                    except Exception as e:
-                        st.error("Registration failed.")
-                        st.code(str(e))
-                if st.session_state.get("go_to_login"):
-                  st.session_state.auth_view = "Login"
-                  st.session_state["go_to_login"] = False
+              if not email2_norm or "@" not in email2_norm:
+                  st.error("Please enter a valid email.")
+              elif len((pw2 or "").strip()) < 6:
+                  st.error("Password must be at least 6 characters.")
+              elif pw2 != pw3:
+                  st.error("Passwords do not match.")
+              else:
+                  try:
+                      register_user(email2_norm, pw2, display_name=display)
+                      st.session_state["go_to_login"] = True
+                      st.rerun()
+                  except sqlite3.IntegrityError:
+                      st.error("This email is already registered.")
+                  except Exception as e:
+                      st.error("Registration failed.")
+                      st.code(str(e))
+                
 
         elif auth_view == "Forgot password":
             cfg = smtp_config()
