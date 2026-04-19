@@ -901,8 +901,8 @@ def create_session(email: str, days_valid: int = SESSION_DAYS) -> None:
     remember_token = make_remember_token(email, days_valid=days_valid)
 
     cm = cookie_manager()
-    cm.set("remember_token", remember_token, expires_at=expires)
-    cm.set("remember_email", email, expires_at=expires)
+    cm.set("remember_token", remember_token, expires_at=expires, key="set_remember_token")
+    cm.set("remember_email", email, expires_at=expires, key="set_remember_email")
 
     st.session_state["user_email"] = email
     st.session_state["_cookie_bootstrap_done"] = True
@@ -912,9 +912,9 @@ def delete_session() -> None:
     expired = datetime.utcnow() - timedelta(days=1)
     cm = cookie_manager()
 
-    cm.set("remember_token", "", expires_at=expired)
-    cm.set("remember_email", "", expires_at=expired)
-    cm.set("session_id", "", expires_at=expired)
+    cm.set("remember_token", "", expires_at=expired, key="clear_remember_token")
+    cm.set("remember_email", "", expires_at=expired, key="clear_remember_email")
+    cm.set("session_id", "", expires_at=expired, key="clear_session_id")
 
     st.session_state["_cookie_bootstrap_done"] = True
 
@@ -1461,7 +1461,15 @@ def auth_gate() -> bool:
             )
             st.write("")
 
-            email = st.text_input("Email", key="auth_login_email", placeholder="name@example.com")
+            cm = cookie_manager()
+            remembered_email = cm.get("remember_email") or ""
+
+            email = st.text_input(
+                "Email",
+                value=remembered_email,
+                key="auth_login_email",
+                placeholder="name@example.com"
+            )
             pw = st.text_input("Password", type="password", key="auth_login_pw")
             remember = st.checkbox(f"Remember me for {SESSION_DAYS} days", value=True, key="auth_remember")
 
