@@ -902,7 +902,6 @@ def create_session(email: str, days_valid: int = SESSION_DAYS) -> None:
 
     cm = cookie_manager()
     cm.set("remember_token", remember_token, expires_at=expires)
-    cm.set("remember_email", email, expires_at=expires)
 
     st.session_state["user_email"] = email
     st.session_state["_cookie_bootstrap_done"] = True
@@ -916,24 +915,23 @@ def delete_session() -> None:
 
     expired = datetime.utcnow() - timedelta(days=1)
     cm = cookie_manager()
-
     cm.set("remember_token", "", expires_at=expired)
-    cm.set("remember_email", "", expires_at=expired)
+
+    st.session_state["user_email"] = None
 
 
 def restore_session_from_cookie() -> None:
     if "user_email" not in st.session_state:
-        st.session_state.user_email = None
+        st.session_state["user_email"] = None
 
-    if st.session_state.user_email:
+    if st.session_state.get("user_email"):
         return
-
-    cm = cookie_manager()
 
     if "_cookie_bootstrap_done" not in st.session_state:
         st.session_state["_cookie_bootstrap_done"] = True
         st.rerun()
 
+    cm = cookie_manager()
     token = cm.get("remember_token")
 
     if not token:
@@ -942,10 +940,9 @@ def restore_session_from_cookie() -> None:
     email = verify_remember_token(token)
 
     if email:
-        st.session_state.user_email = email
+        st.session_state["user_email"] = email
     else:
         delete_session()
-        st.session_state.user_email = None
 
 
 # ============================================================
@@ -1469,7 +1466,6 @@ def auth_gate() -> bool:
 
             email = st.text_input(
                 "Email",
-                value=remembered_email,
                 key="auth_login_email",
                 placeholder="name@example.com"
             )
@@ -2232,8 +2228,7 @@ def page_account() -> None:
         st.write("")
         if st.button("Logout", use_container_width=True, key="acc_logout_btn"):
             delete_session()
-            st.session_state.user_email = None
-            st.rerun()
+            st.stop()
 
     st.markdown("---")
     st.markdown("**Change password**")
@@ -2576,7 +2571,6 @@ with hero_right:
 
     if st.button("Logout", use_container_width=True, key="top_logout_btn"):
       delete_session()
-      st.session_state.user_email = None
       st.stop()  
 
 st.write("")
