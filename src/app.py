@@ -900,7 +900,6 @@ def create_session(email: str, days_valid: int = SESSION_DAYS) -> None:
     remember_token = make_remember_token(email, days_valid=days_valid)
 
     st.session_state["_set_remember_token"] = remember_token
-    st.session_state["_set_remember_email"] = email
     st.session_state["_set_remember_expires"] = expires
     st.session_state["user_email"] = email
 
@@ -916,21 +915,12 @@ def apply_pending_cookie_writes() -> None:
         )
         del st.session_state["_set_remember_token"]
 
-    if "_set_remember_email" in st.session_state:
-        cm.set(
-            "remember_email",
-            st.session_state["_set_remember_email"],
-            expires_at=st.session_state["_set_remember_expires"],
-        )
-        del st.session_state["_set_remember_email"]
-
     if "_set_remember_expires" in st.session_state:
         del st.session_state["_set_remember_expires"]
 
     if st.session_state.get("_clear_remember_cookies"):
         expired = datetime.utcnow() - timedelta(days=1)
         cm.set("remember_token", "", expires_at=expired)
-        cm.set("remember_email", "", expires_at=expired)
         st.session_state["_clear_remember_cookies"] = False
 
 
@@ -1478,13 +1468,17 @@ def auth_gate() -> bool:
             st.write("")
 
             cm = cookie_manager()
-            remembered_email = cm.get("remember_email") or ""
+            token = cm.get("remember_token") or ""
+            remembered_email = verify_remember_token(token) if token else ""
+
+            if "auth_login_email" not in st.session_state and remembered_email:
+                  st.session_state["auth_login_email"] = remembered_email
 
             email = st.text_input(
-                "Email",
-                key="auth_login_email",
-                placeholder="name@example.com"
-            )
+                  "Email",
+                  key="auth_login_email",
+                  placeholder="name@example.com"
+              )
             pw = st.text_input("Password", type="password", key="auth_login_pw")
             remember = st.checkbox(f"Remember me for {SESSION_DAYS} days", value=True, key="auth_remember")
 
@@ -2243,8 +2237,8 @@ def page_account() -> None:
         )
         st.write("")
         if st.button("Logout", use_container_width=True, key="acc_logout_btn"):
-            delete_session()
-            st.stop()
+          delete_session()
+          st.rerun()
 
     st.markdown("---")
     st.markdown("**Change password**")
@@ -2588,7 +2582,7 @@ with hero_right:
 
     if st.button("Logout", use_container_width=True, key="top_logout_btn"):
       delete_session()
-      st.stop()  
+      st.rerun() 
 
 st.write("")
 
