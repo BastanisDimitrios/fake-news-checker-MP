@@ -1471,8 +1471,8 @@ def auth_gate() -> bool:
             token = cm.get("remember_token") or ""
             remembered_email = verify_remember_token(token) if token else ""
 
-            if "auth_login_email" not in st.session_state and remembered_email:
-                  st.session_state["auth_login_email"] = remembered_email
+            if remembered_email and not st.session_state.get("auth_login_email"):
+              st.session_state["auth_login_email"] = remembered_email
 
             email = st.text_input(
                   "Email",
