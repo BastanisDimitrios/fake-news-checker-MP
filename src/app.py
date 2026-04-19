@@ -66,7 +66,7 @@ RESET_COOLDOWN_SEC = 45
 # ============================================================
 def cookie_manager() -> stx.CookieManager:
     if "_cookie_manager" not in st.session_state:
-        st.session_state["_cookie_manager"] = stx.CookieManager()
+        st.session_state["_cookie_manager"] = stx.CookieManager(key="cookie_manager_main")
     return st.session_state["_cookie_manager"]
 
 
@@ -897,39 +897,54 @@ def update_password(email: str, new_password: str) -> None:
 def create_session(email: str, days_valid: int = SESSION_DAYS) -> None:
     email = email.lower().strip()
     expires = datetime.utcnow() + timedelta(days=days_valid)
-
     remember_token = make_remember_token(email, days_valid=days_valid)
 
-    cm = cookie_manager()
-    cm.set("remember_token", remember_token, expires_at=expires)
-
+    st.session_state["_set_remember_token"] = remember_token
+    st.session_state["_set_remember_email"] = email
+    st.session_state["_set_remember_expires"] = expires
     st.session_state["user_email"] = email
-    st.session_state["_cookie_bootstrap_done"] = True
+
+
+def apply_pending_cookie_writes() -> None:
+    cm = cookie_manager()
+
+    if "_set_remember_token" in st.session_state:
+        cm.set(
+            "remember_token",
+            st.session_state["_set_remember_token"],
+            expires_at=st.session_state["_set_remember_expires"],
+        )
+        del st.session_state["_set_remember_token"]
+
+    if "_set_remember_email" in st.session_state:
+        cm.set(
+            "remember_email",
+            st.session_state["_set_remember_email"],
+            expires_at=st.session_state["_set_remember_expires"],
+        )
+        del st.session_state["_set_remember_email"]
+
+    if "_set_remember_expires" in st.session_state:
+        del st.session_state["_set_remember_expires"]
+
+    if st.session_state.get("_clear_remember_cookies"):
+        expired = datetime.utcnow() - timedelta(days=1)
+        cm.set("remember_token", "", expires_at=expired)
+        cm.set("remember_email", "", expires_at=expired)
+        st.session_state["_clear_remember_cookies"] = False
 
 
 def delete_session() -> None:
-    if st.session_state.get("_deleting_session"):
-        return
-
-    st.session_state["_deleting_session"] = True
-
-    expired = datetime.utcnow() - timedelta(days=1)
-    cm = cookie_manager()
-    cm.set("remember_token", "", expires_at=expired)
-
+    st.session_state["_clear_remember_cookies"] = True
     st.session_state["user_email"] = None
 
 
 def restore_session_from_cookie() -> None:
     if "user_email" not in st.session_state:
-        st.session_state["user_email"] = None
+        st.session_state.user_email = None
 
-    if st.session_state.get("user_email"):
+    if st.session_state.user_email:
         return
-
-    if "_cookie_bootstrap_done" not in st.session_state:
-        st.session_state["_cookie_bootstrap_done"] = True
-        st.rerun()
 
     cm = cookie_manager()
     token = cm.get("remember_token")
@@ -940,9 +955,10 @@ def restore_session_from_cookie() -> None:
     email = verify_remember_token(token)
 
     if email:
-        st.session_state["user_email"] = email
+        st.session_state.user_email = email
     else:
-        delete_session()
+        st.session_state["_clear_remember_cookies"] = True
+        st.session_state.user_email = None
 
 
 # ============================================================
@@ -2501,6 +2517,7 @@ update_reference_lists()
 
 theme = get_theme()
 inject_css(theme)
+apply_pending_cookie_writes()
 
 logged_in = auth_gate()
 if not logged_in:
