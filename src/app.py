@@ -909,13 +909,16 @@ def create_session(email: str, days_valid: int = SESSION_DAYS) -> None:
 
 
 def delete_session() -> None:
+    if st.session_state.get("_deleting_session"):
+        return
+
+    st.session_state["_deleting_session"] = True
+
     expired = datetime.utcnow() - timedelta(days=1)
     cm = cookie_manager()
 
     cm.set("remember_token", "", expires_at=expired)
     cm.set("remember_email", "", expires_at=expired)
-
-    st.session_state["_cookie_bootstrap_done"] = True
 
 
 def restore_session_from_cookie() -> None:
@@ -2571,11 +2574,10 @@ with hero_right:
         set_theme("dark" if new_toggle else "light")
         st.rerun()
 
-    st.write("")
     if st.button("Logout", use_container_width=True, key="top_logout_btn"):
-        delete_session()
-        st.session_state.user_email = None
-        st.rerun()
+      delete_session()
+      st.session_state.user_email = None
+      st.stop()  
 
 st.write("")
 
