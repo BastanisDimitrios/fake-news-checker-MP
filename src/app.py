@@ -1521,12 +1521,16 @@ def auth_gate() -> bool:
                     try:
                         register_user(email2_norm, pw2, display_name=display)
                         st.success("Account created successfully. You can now log in.")
-                        st.session_state.auth_view = "Login"
+                        st.session_state["go_to_login"] = True
+                        st.rerun()
                     except sqlite3.IntegrityError:
                         st.error("This email is already registered.")
                     except Exception as e:
                         st.error("Registration failed.")
                         st.code(str(e))
+                if st.session_state.get("go_to_login"):
+                  st.session_state.auth_view = "Login"
+                  st.session_state["go_to_login"] = False
 
         elif auth_view == "Forgot password":
             cfg = smtp_config()
@@ -1566,13 +1570,11 @@ def auth_gate() -> bool:
                             try:
                                 send_reset_email(email_norm, code)
                                 st.success("Verification code sent successfully. Please check your inbox.")
-                            except Exception:
-                                st.warning("SMTP delivery failed, so the system is using development mode.")
-                                st.info("Use the verification code below to continue the reset process.")
-                                st.code(code)
+                            except Exception as e:
+                                st.error("Email delivery failed. Please try again later or contact support.")
+                                st.code(str(e))
                         else:
-                            st.info("SMTP is disabled. Development code shown below:")
-                            st.code(code)
+                            st.error("SMTP is not configured, so password reset email is unavailable.")
 
             st.write("")
             st.markdown("**Verify code and set a new password**")
