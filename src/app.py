@@ -2021,8 +2021,10 @@ def page_checker(model, vectorizer) -> None:
                     )
 
                 except Exception as e:
-                  st.error("Could not fetch or analyze this URL. The site may block automated access or limit scraping.")
-                  st.code(str(e))
+                  st.error("Could not analyze this URL. The website may block automated access or restrict data extraction.")
+
+                  with st.expander("Technical details"):
+                      st.code(str(e))
 
         with right:
             st.markdown(
