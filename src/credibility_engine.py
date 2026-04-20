@@ -11,6 +11,30 @@ from source_checks import (
 from updater import load_reference_lists
 
 
+def classify_source(domain: str) -> str:
+    domain = domain.lower().strip()
+
+    if domain.endswith(".gov") or ".gov." in domain:
+        return "government"
+
+    if (
+        domain.endswith(".edu")
+        or ".edu." in domain
+        or domain.endswith(".ac.uk")
+        or domain.endswith(".edu.au")
+    ):
+        return "university"
+
+    news_keywords = [
+        "news", "times", "post", "bbc", "cnn", "reuters",
+        "guardian", "apnews", "foxnews", "politico"
+    ]
+    if any(k in domain for k in news_keywords):
+        return "news"
+
+    return "other"
+
+
 def evaluate_source(url: str) -> dict:
     refs = load_reference_lists()
 
@@ -20,15 +44,25 @@ def evaluate_source(url: str) -> dict:
 
     domain = normalize_domain(url)
     institutional, institutional_reason = is_institutional_domain(domain)
+    source_type = classify_source(domain)
 
     author_score, _ = check_author(url, soup, {})
     transparency_score, _ = check_transparency(url, soup, {})
     corroboration_score, _ = check_corroboration(title, refs["domains"], url)
 
+    if source_type == "government":
+        w_author, w_transparency, w_corroboration = 0.20, 0.50, 0.30
+    elif source_type == "university":
+        w_author, w_transparency, w_corroboration = 0.30, 0.30, 0.40
+    elif source_type == "news":
+        w_author, w_transparency, w_corroboration = 0.40, 0.30, 0.30
+    else:
+        w_author, w_transparency, w_corroboration = 0.35, 0.35, 0.30
+
     final_score = round(
-        0.35 * author_score +
-        0.35 * transparency_score +
-        0.30 * corroboration_score,
+        w_author * author_score +
+        w_transparency * transparency_score +
+        w_corroboration * corroboration_score,
         2
     )
 
@@ -54,6 +88,7 @@ def evaluate_source(url: str) -> dict:
         "transparency_score": transparency_score,
         "corroboration_score": corroboration_score,
         "domain": domain,
+        "source_type": source_type,
         "institutional_detected": institutional,
         "institutional_reason": institutional_reason if institutional else "",
     }
