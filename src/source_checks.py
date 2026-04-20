@@ -65,14 +65,26 @@ def normalize_domain(url: str) -> str:
 def is_institutional_domain(domain: str) -> tuple[bool, str]:
     domain = domain.lower().strip()
 
-    if domain.endswith(".gov") or ".gov." in domain:
+    if (
+        domain.endswith(".gov")
+        or domain.endswith(".gov.gr")
+        or ".gov." in domain
+        or domain == "gov.gr"
+    ):
         return True, "Government domain"
-    if domain.endswith(".edu") or ".edu." in domain:
+
+    if (
+        domain.endswith(".edu")
+        or ".edu." in domain
+        or domain.endswith(".edu.au")
+    ):
         return True, "Educational domain"
+
     if domain.endswith(".ac.uk"):
         return True, "UK academic domain"
-    if domain.endswith(".edu.au"):
-        return True, "Australian academic domain"
+
+    if domain.endswith(".int"):
+        return True, "International institution domain"
 
     trusted_institutions = {
         "harvard.edu",
@@ -85,6 +97,8 @@ def is_institutional_domain(domain: str) -> tuple[bool, str]:
         "europa.eu",
         "un.org",
         "cdc.gov",
+        "gov.gr",
+        "my.gov.gr",
     }
 
     if domain in trusted_institutions:
