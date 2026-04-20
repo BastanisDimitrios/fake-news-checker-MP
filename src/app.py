@@ -1231,6 +1231,10 @@ def render_probability_block(p_real: float, p_fake: float) -> None:
     real_pct = max(0.0, min(100.0, p_real * 100))
     fake_pct = max(0.0, min(100.0, p_fake * 100))
 
+
+    st.write(f"Real probability: {p_real:.2%}")
+    st.write(f"Fake probability: {p_fake:.2%}")
+
     st.markdown(
         f"""
 <div class="card-soft">
@@ -1632,6 +1636,8 @@ def page_checker(model, vectorizer) -> None:
     st.caption(
         "Use the workspace below to run text classification, source credibility checks, or batch analysis on multiple articles."
     )
+    
+    st.caption("This tool provides an estimation and should not be used as the sole fact-checking authority.")
 
     st.markdown(
         """
@@ -2013,8 +2019,8 @@ def page_checker(model, vectorizer) -> None:
                     )
 
                 except Exception as e:
-                    st.error("Failed to evaluate source credibility.")
-                    st.code(str(e))
+                  st.error("Could not fetch or analyze this URL. The site may block automated access or limit scraping.")
+                  st.code(str(e))
 
         with right:
             st.markdown(
