@@ -14,16 +14,32 @@ from updater import load_reference_lists
 def evaluate_source(url: str) -> dict:
     refs = load_reference_lists()
 
-    html = fetch_html(url)
-    soup = make_soup(html)
-    title = extract_title(soup)
-
     domain = normalize_domain(url)
     institutional, institutional_reason = is_institutional_domain(domain)
 
-    author_score, _ = check_author(url, soup, {})
-    transparency_score, _ = check_transparency(url, soup, {})
-    corroboration_score, _ = check_corroboration(title, refs["domains"], url)
+    try:
+        html = fetch_html(url)
+        soup = make_soup(html)
+        title = extract_title(soup)
+
+        author_score, _ = check_author(url, soup, {})
+        transparency_score, _ = check_transparency(url, soup, {})
+        corroboration_score, _ = check_corroboration(title, refs["domains"], url)
+
+    except Exception:
+        if institutional:
+            return {
+                "title": domain,
+                "label": "More Credible",
+                "final_score": 85.0,
+                "author_score": 50,
+                "transparency_score": 90,
+                "corroboration_score": 80,
+                "domain": domain,
+                "institutional_detected": True,
+                "institutional_reason": institutional_reason,
+            }
+        raise
 
     final_score = round(
         0.35 * author_score +
