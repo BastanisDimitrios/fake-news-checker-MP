@@ -68,7 +68,7 @@ def evaluate_source(url: str) -> dict:
 
     if institutional:
         final_score = max(final_score, 75)
-        if transparency_score >= 60 or corroboration_score >= 60:
+        if transparency_score >= 60 and corroboration_score >= 60:
             final_score = max(final_score, 85)
 
     final_score = min(100, final_score)
