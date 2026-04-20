@@ -14,32 +14,16 @@ from updater import load_reference_lists
 def evaluate_source(url: str) -> dict:
     refs = load_reference_lists()
 
+    html = fetch_html(url)
+    soup = make_soup(html)
+    title = extract_title(soup)
+
     domain = normalize_domain(url)
     institutional, institutional_reason = is_institutional_domain(domain)
 
-    try:
-        html = fetch_html(url)
-        soup = make_soup(html)
-        title = extract_title(soup)
-
-        author_score, _ = check_author(url, soup, {})
-        transparency_score, _ = check_transparency(url, soup, {})
-        corroboration_score, _ = check_corroboration(title, refs["domains"], url)
-
-    except Exception:
-        if institutional:
-            return {
-                "title": domain,
-                "label": "More Credible",
-                "final_score": 85.0,
-                "author_score": 50,
-                "transparency_score": 90,
-                "corroboration_score": 80,
-                "domain": domain,
-                "institutional_detected": True,
-                "institutional_reason": institutional_reason,
-            }
-        raise
+    author_score, _ = check_author(url, soup, {})
+    transparency_score, _ = check_transparency(url, soup, {})
+    corroboration_score, _ = check_corroboration(title, refs["domains"], url)
 
     final_score = round(
         0.35 * author_score +
@@ -49,7 +33,11 @@ def evaluate_source(url: str) -> dict:
     )
 
     if institutional:
-        final_score = min(100, final_score + 20)
+        final_score = max(final_score, 75)
+        if transparency_score >= 60 or corroboration_score >= 60:
+            final_score = max(final_score, 85)
+
+    final_score = min(100, final_score)
 
     if final_score >= 70:
         label = "More Credible"
