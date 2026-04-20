@@ -1923,6 +1923,8 @@ def page_checker(model, vectorizer) -> None:
                         st.success(
                             f"Institutional domain detected: {result.get('institutional_reason', '')}"
                         )
+
+                    st.markdown("### Score Breakdown")
                     c1, c2, c3 = st.columns(3)
 
                     with c1:
@@ -2530,7 +2532,11 @@ def page_about() -> None:
 # MAIN
 # ============================================================
 init_db()
-update_reference_lists()
+
+
+if "refs_updated" not in st.session_state:
+    update_reference_lists()
+    st.session_state["refs_updated"] = True
 
 theme = get_theme()
 inject_css(theme)
