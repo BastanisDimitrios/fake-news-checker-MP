@@ -4,7 +4,6 @@ from typing import Optional, Tuple, Dict
 import os
 import re
 import hmac
-import uuid
 import string
 import sqlite3
 import hashlib
@@ -79,6 +78,7 @@ def get_app_secret() -> str:
     if not secret or len(str(secret)) < 20:
         raise RuntimeError("Missing or weak APP_SECRET in .streamlit/secrets.toml")
     return str(secret)
+  
 def make_remember_token(email: str, days_valid: int = SESSION_DAYS) -> str:
     expires = int((datetime.utcnow() + timedelta(days=days_valid)).timestamp())
     payload = {
