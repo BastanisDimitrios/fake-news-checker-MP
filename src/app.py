@@ -1232,8 +1232,6 @@ def render_probability_block(p_real: float, p_fake: float) -> None:
     fake_pct = max(0.0, min(100.0, p_fake * 100))
 
 
-    st.write(f"Real probability: {p_real:.2%}")
-    st.write(f"Fake probability: {p_fake:.2%}")
 
     st.markdown(
         f"""
@@ -1765,6 +1763,8 @@ def page_checker(model, vectorizer) -> None:
 
                 st.write("")
                 render_probability_block(p_real, p_fake)
+                st.write(f"Real probability: {p_real:.2%}")
+                st.write(f"Fake probability: {p_fake:.2%}")
                 st.write("")
                 st.markdown("### 🔍 Key Influencing Words")
 
@@ -1804,11 +1804,7 @@ def page_checker(model, vectorizer) -> None:
                         f"This article falls into the {band.lower()} range and may contain misleading content."
                     )
                 
-                st.info(
-                    "Institutional websites such as universities, government domains, or research organizations "
-                    "may not always follow standard news article structures. As a result, the system may return "
-                    "moderate or lower credibility scores even when the source itself is trustworthy."
-                )
+                
 
                 report_txt = build_text_report(
                     mode="TEXT",
@@ -1882,6 +1878,12 @@ def page_checker(model, vectorizer) -> None:
 
             url = st.text_input("Paste URL", placeholder="https://...", key="url")
             st.caption("This mode evaluates author verification, publisher transparency, and source corroboration.")
+            
+            st.info(
+                    "Institutional websites such as universities, government domains, or research organizations "
+                    "may not always follow standard news article structures. As a result, the system may return "
+                    "moderate or lower credibility scores even when the source itself is trustworthy."
+                )
 
             if st.button("Fetch and analyze URL", type="primary", use_container_width=True, key="btn_url"):
                 rate_limit_gate("check_url")
