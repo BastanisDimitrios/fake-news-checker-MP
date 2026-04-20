@@ -1913,7 +1913,16 @@ def page_checker(model, vectorizer) -> None:
                         render_gauge(final_score)
 
                     st.write("")
-                    st.markdown("### Score Breakdown")
+                    st.markdown("### Source Information")
+
+                    st.info(
+                        f"Detected source type: {result.get('source_type', 'other').title()}"
+                    )
+
+                    if result.get("institutional_detected"):
+                        st.success(
+                            f"Institutional domain detected: {result.get('institutional_reason', '')}"
+                        )
                     c1, c2, c3 = st.columns(3)
 
                     with c1:
