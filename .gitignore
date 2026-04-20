@@ -1,4 +1,6 @@
+venv/
+.venv/
 .streamlit/secrets.toml
 users.db
-.DS_Store
-data/raw/*.csv
+__pycache__/
+data/raw/
