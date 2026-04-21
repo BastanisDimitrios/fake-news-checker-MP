@@ -967,9 +967,10 @@ def restore_session_from_cookie() -> None:
     email = verify_remember_token(token)
 
     if email:
-        st.session_state["user_email"] = email
-        st.session_state["auth_login_email"] = email
-        st.session_state["cookie_restore_attempted"] = 0
+      st.session_state["user_email"] = email
+      if "auth_login_email" not in st.session_state:
+          st.session_state["auth_login_email"] = email
+      st.session_state["cookie_restore_attempted"] = 0
     else:
         st.session_state["_clear_remember_cookies"] = True
         st.session_state["user_email"] = None
@@ -1531,7 +1532,6 @@ def auth_gate() -> bool:
                           st.session_state["_clear_remember_cookies"] = True
 
                       st.session_state["cookie_restore_attempted"] = 0
-                      st.session_state["auth_login_email"] = email_norm
                       st.success("Login successful.")
                       st.rerun()
                   else:
