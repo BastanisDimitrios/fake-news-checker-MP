@@ -156,6 +156,8 @@ def rate_limit_gate(action_key: str, seconds: int = RATE_LIMIT_SECONDS) -> None:
     st.session_state[k] = now
 
 
+
+
 # ============================================================
 # Theme
 # ============================================================
@@ -234,6 +236,15 @@ def inject_css(theme: str) -> None:
 
 html, body, .stApp, [data-testid="stAppViewContainer"] {{
   background: var(--bg) !important;
+}}
+
+html {{
+  scroll-behavior: smooth;
+}}
+
+.stApp {{
+  transition: opacity 0.22s ease-in-out, transform 0.22s ease-in-out;
+
 }}
 
 html, body, .stApp, [data-testid="stAppViewContainer"],
@@ -894,28 +905,29 @@ def update_password(email: str, new_password: str) -> None:
 # ============================================================
 # Sessions / auto-login
 # ============================================================
+# ============================================================
+# Sessions / auto-login
+# ============================================================
 def create_session(email: str, days_valid: int = SESSION_DAYS) -> None:
     email = email.lower().strip()
     expires = datetime.utcnow() + timedelta(days=days_valid)
     remember_token = make_remember_token(email, days_valid=days_valid)
 
+    st.session_state["user_email"] = email
     st.session_state["_set_remember_token"] = remember_token
     st.session_state["_set_remember_expires"] = expires
-    st.session_state["user_email"] = email
 
 
 def apply_pending_cookie_writes() -> None:
     cm = cookie_manager()
 
-    if "_set_remember_token" in st.session_state:
+    if "_set_remember_token" in st.session_state and "_set_remember_expires" in st.session_state:
         cm.set(
             "remember_token",
             st.session_state["_set_remember_token"],
             expires_at=st.session_state["_set_remember_expires"],
         )
         del st.session_state["_set_remember_token"]
-
-    if "_set_remember_expires" in st.session_state:
         del st.session_state["_set_remember_expires"]
 
     if st.session_state.get("_clear_remember_cookies"):
@@ -923,20 +935,31 @@ def apply_pending_cookie_writes() -> None:
         cm.set("remember_token", "", expires_at=expired)
         st.session_state["_clear_remember_cookies"] = False
 
-
 def delete_session() -> None:
     st.session_state["_clear_remember_cookies"] = True
     st.session_state["user_email"] = None
+    st.session_state["auth_login_pw"] = ""
+    st.session_state["cookie_restore_attempted"] = 0
 
 
 def restore_session_from_cookie() -> None:
     if "user_email" not in st.session_state:
-        st.session_state.user_email = None
+        st.session_state["user_email"] = None
 
-    if st.session_state.user_email:
+    if "cookie_restore_attempted" not in st.session_state:
+        st.session_state["cookie_restore_attempted"] = 0
+
+    # if already logged in in current session, stop here
+    if st.session_state["user_email"]:
         return
 
-    token = cookie_manager().get("remember_token")
+    cm = cookie_manager()
+    token = cm.get("remember_token")
+
+    # On browser refresh, CookieManager may need 1-2 reruns to expose the cookie
+    if not token and st.session_state["cookie_restore_attempted"] < 2:
+        st.session_state["cookie_restore_attempted"] += 1
+        st.rerun()
 
     if not token:
         return
@@ -944,11 +967,13 @@ def restore_session_from_cookie() -> None:
     email = verify_remember_token(token)
 
     if email:
-        st.session_state.user_email = email
+        st.session_state["user_email"] = email
+        st.session_state["auth_login_email"] = email
+        st.session_state["cookie_restore_attempted"] = 0
     else:
         st.session_state["_clear_remember_cookies"] = True
-        st.session_state.user_email = None
-
+        st.session_state["user_email"] = None
+        st.session_state["cookie_restore_attempted"] = 0
 
 # ============================================================
 # History
@@ -1483,29 +1508,43 @@ def auth_gate() -> bool:
             remember = st.checkbox(f"Remember me for {SESSION_DAYS} days", value=True, key="auth_remember")
 
             if st.button("Login", type="primary", use_container_width=True, key="auth_login_btn"):
-                rate_limit_gate("login")
-                email_norm = (email or "").lower().strip()
-                user = get_user(email_norm)
+              rate_limit_gate("login")
+              email_norm = (email or "").lower().strip()
+              user = get_user(email_norm)
 
-                if not email_norm or "@" not in email_norm:
-                    st.error("Please enter a valid email.")
-                elif not pw.strip():
-                    st.error("Please enter your password.")
-                elif not user:
-                    st.error("User not found.")
-                else:
-                    _, stored_hash, _ = user
-                    if pbkdf2_verify_password(pw, stored_hash, get_app_secret()):
-                        st.session_state.user_email = email_norm
-                        update_last_login(email_norm)
-                        if remember:
-                            create_session(email_norm, days_valid=SESSION_DAYS)
-                        else:
-                            delete_session()
-                        st.success("Logged in successfully.")
-                        st.rerun()
-                    else:
-                        st.error("Incorrect password.")
+              if not email_norm or "@" not in email_norm:
+                  st.error("Please enter a valid email.")
+              elif not pw.strip():
+                  st.error("Please enter your password.")
+              elif not user:
+                  st.error("User not found.")
+              else:
+                  _, stored_hash, _ = user
+
+                  if pbkdf2_verify_password(pw, stored_hash, get_app_secret()):
+                      update_last_login(email_norm)
+
+                      if remember:
+                          create_session(email_norm, days_valid=SESSION_DAYS)
+                      else:
+                          st.session_state["user_email"] = email_norm
+                          st.session_state["_clear_remember_cookies"] = True
+
+                      st.session_state["cookie_restore_attempted"] = 0
+                      st.session_state["auth_login_email"] = email_norm
+                      st.success("Login successful.")
+                      st.rerun()
+                  else:
+                      st.error("Incorrect password.")
+
+              if remember:
+                    create_session(email_norm, days_valid=SESSION_DAYS)
+              else:
+                    st.session_state["user_email"] = email_norm
+                    st.session_state["_clear_remember_cookies"] = True
+
+              st.session_state["cookie_restore_attempted"] = 0
+              st.session_state["cookie_ready"] = True
 
         elif auth_view == "Register":
             st.markdown(
@@ -1538,7 +1577,6 @@ def auth_gate() -> bool:
                   try:
                       register_user(email2_norm, pw2, display_name=display)
                       st.session_state["go_to_login"] = True
-                      st.rerun()
                   except sqlite3.IntegrityError:
                       st.error("This email is already registered.")
                   except Exception as e:
@@ -1618,7 +1656,6 @@ def auth_gate() -> bool:
                     st.stop()
 
                 update_password(email_norm, newp1.strip())
-                st.success("Password updated successfully. You can now log in.")
                 st.session_state.auth_view = "Login"
 
     return False
@@ -2262,8 +2299,7 @@ def page_account() -> None:
         )
         st.write("")
         if st.button("Logout", use_container_width=True, key="acc_logout_btn"):
-          delete_session()
-          st.rerun()
+            delete_session()
 
     st.markdown("---")
     st.markdown("**Change password**")
@@ -2610,8 +2646,7 @@ with hero_right:
         st.rerun()
 
     if st.button("Logout", use_container_width=True, key="top_logout_btn"):
-      delete_session()
-      st.rerun() 
+        delete_session()
 
 st.write("")
 
