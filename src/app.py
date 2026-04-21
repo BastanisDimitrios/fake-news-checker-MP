@@ -967,7 +967,6 @@ def restore_session_from_cookie() -> None:
 
     if email:
         st.session_state["user_email"] = email
-        st.session_state["auth_login_email"] = email
         st.session_state["cookie_restore_attempted"] = 0
     else:
         st.session_state["_clear_remember_cookies"] = True
@@ -1507,43 +1506,33 @@ def auth_gate() -> bool:
             remember = st.checkbox(f"Remember me for {SESSION_DAYS} days", value=True, key="auth_remember")
 
             if st.button("Login", type="primary", use_container_width=True, key="auth_login_btn"):
-              rate_limit_gate("login")
-              email_norm = (email or "").lower().strip()
-              user = get_user(email_norm)
+                rate_limit_gate("login")
+                email_norm = (email or "").lower().strip()
+                user = get_user(email_norm)
 
-              if not email_norm or "@" not in email_norm:
-                  st.error("Please enter a valid email.")
-              elif not pw.strip():
-                  st.error("Please enter your password.")
-              elif not user:
-                  st.error("User not found.")
-              else:
-                  _, stored_hash, _ = user
+                if not email_norm or "@" not in email_norm:
+                    st.error("Please enter a valid email.")
+                elif not pw.strip():
+                    st.error("Please enter your password.")
+                elif not user:
+                    st.error("User not found.")
+                else:
+                    _, stored_hash, _ = user
 
-                  if pbkdf2_verify_password(pw, stored_hash, get_app_secret()):
-                      update_last_login(email_norm)
+                    if pbkdf2_verify_password(pw, stored_hash, get_app_secret()):
+                        update_last_login(email_norm)
 
-                      if remember:
-                          create_session(email_norm, days_valid=SESSION_DAYS)
-                      else:
-                          st.session_state["user_email"] = email_norm
-                          st.session_state["_clear_remember_cookies"] = True
+                        if remember:
+                            create_session(email_norm, days_valid=SESSION_DAYS)
+                        else:
+                            st.session_state["user_email"] = email_norm
+                            st.session_state["_clear_remember_cookies"] = True
 
-                      st.session_state["cookie_restore_attempted"] = 0
-                      st.session_state["auth_login_email"] = email_norm
-                      st.success("Login successful.")
-                      st.rerun()
-                  else:
-                      st.error("Incorrect password.")
-
-              if remember:
-                    create_session(email_norm, days_valid=SESSION_DAYS)
-              else:
-                    st.session_state["user_email"] = email_norm
-                    st.session_state["_clear_remember_cookies"] = True
-
-              st.session_state["cookie_restore_attempted"] = 0
-              st.session_state["cookie_ready"] = True
+                        st.session_state["cookie_restore_attempted"] = 0
+                        st.success("Login successful.")
+                        st.rerun()
+                    else:
+                        st.error("Incorrect password.")
 
         elif auth_view == "Register":
             st.markdown(
