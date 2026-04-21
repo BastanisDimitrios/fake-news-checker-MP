@@ -2692,21 +2692,41 @@ else:
 st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("---")
 
-tab_checker, tab_history, tab_account, tab_about, tab_help = st.tabs(
-    ["🔎 Checker", "🕘 History", "👤 Account", "ℹ️ About", "💬 Help"]
+# Persistent page navigation across refresh
+page_labels = {
+    "checker": "🔎 Checker",
+    "history": "🕘 History",
+    "account": "👤 Account",
+    "about": "ℹ️ About",
+    "help": "💬 Help",
+}
+
+current_page = st.query_params.get("page", "checker")
+if current_page not in page_labels:
+    current_page = "checker"
+
+selected_label = st.radio(
+    "Navigation",
+    options=list(page_labels.values()),
+    index=list(page_labels.keys()).index(current_page),
+    horizontal=True,
+    key="main_nav_radio",
+    label_visibility="collapsed",
 )
 
-with tab_checker:
+selected_page = {v: k for k, v in page_labels.items()}[selected_label]
+
+if selected_page != current_page:
+    st.query_params["page"] = selected_page
+    st.rerun()
+
+if selected_page == "checker":
     page_checker(model, vectorizer)
-
-with tab_history:
+elif selected_page == "history":
     page_history()
-
-with tab_account:
+elif selected_page == "account":
     page_account()
-
-with tab_about:
+elif selected_page == "about":
     page_about()
-
-with tab_help:
+elif selected_page == "help":
     page_help()
