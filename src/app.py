@@ -940,6 +940,7 @@ def delete_session() -> None:
     st.session_state["user_email"] = None
     st.session_state["auth_login_pw"] = ""
     st.session_state["cookie_restore_attempted"] = 0
+    st.rerun()
 
 
 def restore_session_from_cookie() -> None:
@@ -949,14 +950,12 @@ def restore_session_from_cookie() -> None:
     if "cookie_restore_attempted" not in st.session_state:
         st.session_state["cookie_restore_attempted"] = 0
 
-    # if already logged in in current session, stop here
     if st.session_state["user_email"]:
         return
 
     cm = cookie_manager()
     token = cm.get("remember_token")
 
-    # On browser refresh, CookieManager may need 1-2 reruns to expose the cookie
     if not token and st.session_state["cookie_restore_attempted"] < 2:
         st.session_state["cookie_restore_attempted"] += 1
         st.rerun()
@@ -967,10 +966,9 @@ def restore_session_from_cookie() -> None:
     email = verify_remember_token(token)
 
     if email:
-      st.session_state["user_email"] = email
-      if "auth_login_email" not in st.session_state:
-          st.session_state["auth_login_email"] = email
-      st.session_state["cookie_restore_attempted"] = 0
+        st.session_state["user_email"] = email
+        st.session_state["auth_login_email"] = email
+        st.session_state["cookie_restore_attempted"] = 0
     else:
         st.session_state["_clear_remember_cookies"] = True
         st.session_state["user_email"] = None
@@ -1532,6 +1530,7 @@ def auth_gate() -> bool:
                           st.session_state["_clear_remember_cookies"] = True
 
                       st.session_state["cookie_restore_attempted"] = 0
+                      st.session_state["auth_login_email"] = email_norm
                       st.success("Login successful.")
                       st.rerun()
                   else:
@@ -2646,7 +2645,7 @@ with hero_right:
         st.rerun()
 
     if st.button("Logout", use_container_width=True, key="top_logout_btn"):
-        delete_session()
+      delete_session()
 
 st.write("")
 
