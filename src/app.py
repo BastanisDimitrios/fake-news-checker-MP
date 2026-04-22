@@ -2757,4 +2757,3 @@ elif selected_page == "about":
 elif selected_page == "help":
     page_help()
     
-current_page = get_current_page()
