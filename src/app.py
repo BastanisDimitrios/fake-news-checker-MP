@@ -2756,4 +2756,3 @@ elif selected_page == "about":
     page_about()
 elif selected_page == "help":
     page_help()
-    
