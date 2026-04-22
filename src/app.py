@@ -939,10 +939,17 @@ def create_session(email: str, days_valid: int = SESSION_DAYS) -> None:
     st.session_state["user_email"] = email
     st.session_state["_set_remember_token"] = remember_token
     st.session_state["_set_remember_expires"] = expires
+    st.session_state["_cookie_write_done"] = False
 
 
 def apply_pending_cookie_writes() -> None:
     cm = cookie_manager()
+
+    if "_cookie_write_done" not in st.session_state:
+        st.session_state["_cookie_write_done"] = False
+
+    if "_cookie_clear_done" not in st.session_state:
+        st.session_state["_cookie_clear_done"] = False
 
     if "_set_remember_token" in st.session_state and "_set_remember_expires" in st.session_state:
         cm.set(
@@ -953,13 +960,23 @@ def apply_pending_cookie_writes() -> None:
         del st.session_state["_set_remember_token"]
         del st.session_state["_set_remember_expires"]
 
+        # one extra rerun so browser stores cookie and next request can read it
+        if not st.session_state["_cookie_write_done"]:
+            st.session_state["_cookie_write_done"] = True
+            st.rerun()
+
     if st.session_state.get("_clear_remember_cookies"):
         expired = datetime.utcnow() - timedelta(days=1)
         cm.set("remember_token", "", expires_at=expired)
         st.session_state["_clear_remember_cookies"] = False
 
+        if not st.session_state["_cookie_clear_done"]:
+            st.session_state["_cookie_clear_done"] = True
+            st.rerun()
+
 def delete_session() -> None:
     st.session_state["_clear_remember_cookies"] = True
+    st.session_state["_cookie_clear_done"] = False
     st.session_state["user_email"] = None
     st.session_state["auth_login_pw"] = ""
     st.session_state["_cookie_restore_done"] = True
@@ -985,8 +1002,6 @@ def restore_session_from_cookie() -> None:
 
     if email:
         st.session_state["user_email"] = email
-        if "auth_login_email" not in st.session_state:
-            st.session_state["auth_login_email"] = email
     else:
         st.session_state["user_email"] = None
 
@@ -1513,6 +1528,9 @@ def auth_gate() -> bool:
             token = get_cookie_value("remember_token")
             remembered_email = verify_remember_token(token) if token else ""
 
+            if "auth_login_email" not in st.session_state:
+                st.session_state["auth_login_email"] = remembered_email or ""
+
             if remembered_email and "auth_login_email" not in st.session_state:
                 st.session_state["auth_login_email"] = remembered_email
 
@@ -1539,18 +1557,18 @@ def auth_gate() -> bool:
                     _, stored_hash, _ = user
 
                     if pbkdf2_verify_password(pw, stored_hash, get_app_secret()):
-                      update_last_login(email_norm)
+                        update_last_login(email_norm)
 
-                      if remember:
-                          create_session(email_norm, days_valid=SESSION_DAYS)
-                      else:
-                          st.session_state["user_email"] = email_norm
-                          st.session_state["_clear_remember_cookies"] = True
+                        if remember:
+                            create_session(email_norm, days_valid=SESSION_DAYS)
+                        else:
+                            st.session_state["user_email"] = email_norm
+                            st.session_state["_clear_remember_cookies"] = True
 
-                      st.session_state["_cookie_restore_done"] = False
-                      st.query_params["page"] = "checker"
-                      st.success("Login successful.")
-                      st.rerun()
+                        st.session_state["_cookie_restore_done"] = False
+                        st.query_params["page"] = "checker"
+                        st.success("Login successful.")
+                        st.rerun()
                     else:
                         st.error("Incorrect password.")
 
