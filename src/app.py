@@ -68,7 +68,20 @@ def cookie_manager() -> stx.CookieManager:
         st.session_state["_cookie_manager"] = stx.CookieManager(key="cookie_manager_main")
     return st.session_state["_cookie_manager"]
 
+def get_cookie_value(name: str) -> str:
+    # 1) official Streamlit cookie access on page load / refresh
+    try:
+        value = st.context.cookies.get(name)
+        if value:
+            return value
+    except Exception:
+        pass
 
+    # 2) fallback to extra_streamlit_components
+    try:
+        return cookie_manager().get(name) or ""
+    except Exception:
+        return ""
 
 # ============================================================
 # Secrets / config
@@ -163,8 +176,7 @@ def rate_limit_gate(action_key: str, seconds: int = RATE_LIMIT_SECONDS) -> None:
 # ============================================================
 def get_theme() -> str:
     if "theme" not in st.session_state:
-        cm = cookie_manager()
-        v = cm.get("theme")
+        v = get_cookie_value("theme")
         st.session_state.theme = v if v in ("dark", "light") else "light"
     return st.session_state.theme
 
@@ -963,11 +975,9 @@ def restore_session_from_cookie() -> None:
     if st.session_state["user_email"]:
         return
 
-    cm = cookie_manager()
-    token = cm.get("remember_token")
+    token = get_cookie_value("remember_token")
 
-    # CookieManager on Streamlit Cloud often needs a few reruns after refresh
-    if not token and st.session_state["cookie_restore_attempted"] < 5:
+    if not token and st.session_state["cookie_restore_attempted"] < 2:
         st.session_state["cookie_restore_attempted"] += 1
         st.rerun()
 
@@ -980,8 +990,6 @@ def restore_session_from_cookie() -> None:
         st.session_state["user_email"] = email
         st.session_state["auth_login_email"] = email
         st.session_state["cookie_restore_attempted"] = 0
-        st.session_state["_cookie_write_rerun_done"] = False
-        st.session_state["_cookie_clear_rerun_done"] = False
     else:
         st.session_state["_clear_remember_cookies"] = True
         st.session_state["user_email"] = None
@@ -1505,7 +1513,7 @@ def auth_gate() -> bool:
             )
             st.write("")
 
-            token = cookie_manager().get("remember_token") or ""
+            token = get_cookie_value("remember_token")
             remembered_email = verify_remember_token(token) if token else ""
 
             if remembered_email and "auth_login_email" not in st.session_state:
@@ -1542,6 +1550,7 @@ def auth_gate() -> bool:
                           st.session_state["user_email"] = email_norm
                           st.session_state["_clear_remember_cookies"] = True
 
+                      st.session_state["auth_login_email"] = email_norm
                       st.session_state["cookie_restore_attempted"] = 0
                       st.session_state["_cookie_write_rerun_done"] = False
                       st.session_state["_cookie_clear_rerun_done"] = False
