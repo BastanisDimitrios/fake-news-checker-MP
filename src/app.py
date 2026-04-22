@@ -115,11 +115,19 @@ def make_remember_token(email: str, days_valid: int = SESSION_DAYS) -> str:
 
 def verify_remember_token(token: str) -> Optional[str]:
     try:
+        if not token:
+            return None
+
+        token = str(token).strip()
+
+        # fix missing base64 padding after browser/cookie transport
+        token += "=" * (-len(token) % 4)
+
         token_json = base64.urlsafe_b64decode(token.encode("utf-8")).decode("utf-8")
         token_obj = json.loads(token_json)
 
-        payload = token_obj["payload"]
-        sig = token_obj["sig"]
+        payload = token_obj.get("payload", {})
+        sig = token_obj.get("sig", "")
 
         payload_json = json.dumps(payload, separators=(",", ":"), sort_keys=True)
         secret = get_app_secret().encode("utf-8")
@@ -133,11 +141,14 @@ def verify_remember_token(token: str) -> Optional[str]:
         if not hmac.compare_digest(sig, expected_sig):
             return None
 
-        exp = int(payload["exp"])
+        exp = int(payload.get("exp", 0))
         if int(datetime.utcnow().timestamp()) > exp:
             return None
 
-        email = str(payload["email"]).lower().strip()
+        email = str(payload.get("email", "")).lower().strip()
+        if not email:
+            return None
+
         return email if get_user(email) else None
 
     except Exception:
@@ -942,25 +953,16 @@ def apply_pending_cookie_writes() -> None:
         del st.session_state["_set_remember_token"]
         del st.session_state["_set_remember_expires"]
 
-        # force one rerun so the browser actually stores the cookie
-        if not st.session_state.get("_cookie_write_rerun_done", False):
-            st.session_state["_cookie_write_rerun_done"] = True
-            st.rerun()
-
     if st.session_state.get("_clear_remember_cookies"):
         expired = datetime.utcnow() - timedelta(days=1)
         cm.set("remember_token", "", expires_at=expired)
         st.session_state["_clear_remember_cookies"] = False
 
-        if not st.session_state.get("_cookie_clear_rerun_done", False):
-            st.session_state["_cookie_clear_rerun_done"] = True
-            st.rerun()
-
 def delete_session() -> None:
     st.session_state["_clear_remember_cookies"] = True
     st.session_state["user_email"] = None
     st.session_state["auth_login_pw"] = ""
-    st.session_state["cookie_restore_attempted"] = 0
+    st.session_state["_cookie_restore_done"] = True
     st.query_params.clear()
     st.rerun()
 
@@ -969,30 +971,26 @@ def restore_session_from_cookie() -> None:
     if "user_email" not in st.session_state:
         st.session_state["user_email"] = None
 
-    if "cookie_restore_attempted" not in st.session_state:
-        st.session_state["cookie_restore_attempted"] = 0
+    if "_cookie_restore_done" not in st.session_state:
+        st.session_state["_cookie_restore_done"] = False
 
     if st.session_state["user_email"]:
         return
 
-    token = get_cookie_value("remember_token")
-
-    if not token and st.session_state["cookie_restore_attempted"] < 5:
-        st.session_state["cookie_restore_attempted"] += 1
-        st.rerun()
-
-    if not token:
+    if st.session_state["_cookie_restore_done"]:
         return
 
-    email = verify_remember_token(token)
+    token = get_cookie_value("remember_token")
+    email = verify_remember_token(token) if token else None
 
     if email:
         st.session_state["user_email"] = email
-        st.session_state["cookie_restore_attempted"] = 0
+        if "auth_login_email" not in st.session_state:
+            st.session_state["auth_login_email"] = email
     else:
-        st.session_state["_clear_remember_cookies"] = True
         st.session_state["user_email"] = None
-        st.session_state["cookie_restore_attempted"] = 0
+
+    st.session_state["_cookie_restore_done"] = True
 
 # ============================================================
 # History
@@ -1549,9 +1547,7 @@ def auth_gate() -> bool:
                           st.session_state["user_email"] = email_norm
                           st.session_state["_clear_remember_cookies"] = True
 
-                      st.session_state["cookie_restore_attempted"] = 0
-                      st.session_state["_cookie_write_rerun_done"] = False
-                      st.session_state["_cookie_clear_rerun_done"] = False
+                      st.session_state["_cookie_restore_done"] = False
                       st.query_params["page"] = "checker"
                       st.success("Login successful.")
                       st.rerun()
