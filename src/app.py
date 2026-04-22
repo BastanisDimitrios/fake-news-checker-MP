@@ -1531,14 +1531,11 @@ def auth_gate() -> bool:
             if "auth_login_email" not in st.session_state:
                 st.session_state["auth_login_email"] = remembered_email or ""
 
-            if remembered_email and "auth_login_email" not in st.session_state:
-                st.session_state["auth_login_email"] = remembered_email
-
             email = st.text_input(
-                  "Email",
-                  key="auth_login_email",
-                  placeholder="name@example.com"
-              )
+                "Email",
+                key="auth_login_email",
+                placeholder="name@example.com"
+            )
             pw = st.text_input("Password", type="password", key="auth_login_pw")
             remember = st.checkbox(f"Remember me for {SESSION_DAYS} days", value=True, key="auth_remember")
 
