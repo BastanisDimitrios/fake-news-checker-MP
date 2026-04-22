@@ -977,7 +977,7 @@ def restore_session_from_cookie() -> None:
 
     token = get_cookie_value("remember_token")
 
-    if not token and st.session_state["cookie_restore_attempted"] < 2:
+    if not token and st.session_state["cookie_restore_attempted"] < 5:
         st.session_state["cookie_restore_attempted"] += 1
         st.rerun()
 
@@ -988,7 +988,6 @@ def restore_session_from_cookie() -> None:
 
     if email:
         st.session_state["user_email"] = email
-        st.session_state["auth_login_email"] = email
         st.session_state["cookie_restore_attempted"] = 0
     else:
         st.session_state["_clear_remember_cookies"] = True
@@ -1550,7 +1549,6 @@ def auth_gate() -> bool:
                           st.session_state["user_email"] = email_norm
                           st.session_state["_clear_remember_cookies"] = True
 
-                      st.session_state["auth_login_email"] = email_norm
                       st.session_state["cookie_restore_attempted"] = 0
                       st.session_state["_cookie_write_rerun_done"] = False
                       st.session_state["_cookie_clear_rerun_done"] = False
