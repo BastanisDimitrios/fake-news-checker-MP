@@ -1507,15 +1507,14 @@ def auth_gate() -> bool:
             token = cookie_manager().get("remember_token") or ""
             remembered_email = verify_remember_token(token) if token else ""
 
-            # initialize state BEFORE widget
-            if "auth_login_email" not in st.session_state:
-                st.session_state["auth_login_email"] = remembered_email or ""
+            if remembered_email and "auth_login_email" not in st.session_state:
+                st.session_state["auth_login_email"] = remembered_email
 
             email = st.text_input(
-                "Email",
-                key="auth_login_email",
-                placeholder="name@example.com"
-            )
+                  "Email",
+                  key="auth_login_email",
+                  placeholder="name@example.com"
+              )
             pw = st.text_input("Password", type="password", key="auth_login_pw")
             remember = st.checkbox(f"Remember me for {SESSION_DAYS} days", value=True, key="auth_remember")
 
@@ -1534,19 +1533,20 @@ def auth_gate() -> bool:
                     _, stored_hash, _ = user
 
                     if pbkdf2_verify_password(pw, stored_hash, get_app_secret()):
-                        update_last_login(email_norm)
+                      update_last_login(email_norm)
 
-                        if remember:
-                            create_session(email_norm, days_valid=SESSION_DAYS)
-                        else:
-                            st.session_state["user_email"] = email_norm
-                            st.session_state["_clear_remember_cookies"] = True
+                      if remember:
+                          create_session(email_norm, days_valid=SESSION_DAYS)
+                      else:
+                          st.session_state["user_email"] = email_norm
+                          st.session_state["_clear_remember_cookies"] = True
 
-                        st.session_state["cookie_restore_attempted"] = 0
-                        st.session_state["_cookie_write_rerun_done"] = False
-                        st.session_state["_cookie_clear_rerun_done"] = False
-                        st.success("Login successful.")
-                        st.rerun()
+                      st.session_state["auth_login_email"] = email_norm
+                      st.session_state["cookie_restore_attempted"] = 0
+                      st.session_state["_cookie_write_rerun_done"] = False
+                      st.session_state["_cookie_clear_rerun_done"] = False
+                      st.success("Login successful.")
+                      st.rerun()
                     else:
                         st.error("Incorrect password.")
 
