@@ -975,11 +975,8 @@ def apply_pending_cookie_writes() -> None:
             st.rerun()
 
 def delete_session() -> None:
-    st.session_state["_clear_remember_cookies"] = True
-    st.session_state["_cookie_clear_done"] = False
     st.session_state["user_email"] = None
     st.session_state["auth_login_pw"] = ""
-    st.session_state["_cookie_restore_done"] = True
     st.query_params.clear()
     st.rerun()
 
@@ -1421,7 +1418,8 @@ def page_help() -> None:
 # Auth UI
 # ============================================================
 def auth_gate() -> bool:
-    restore_session_from_cookie()
+    if "user_email" not in st.session_state:
+        st.session_state["user_email"] = None
 
     if st.session_state.get("user_email"):
         return True
@@ -1559,11 +1557,10 @@ def auth_gate() -> bool:
                     if pbkdf2_verify_password(pw, stored_hash, get_app_secret()):
                         update_last_login(email_norm)
 
-                        if remember:
-                            create_session(email_norm, days_valid=SESSION_DAYS)
-                        else:
-                            st.session_state["user_email"] = email_norm
-                            st.session_state["_clear_remember_cookies"] = True
+                        st.session_state["user_email"] = email_norm
+                        st.query_params["page"] = "checker"
+                        st.success("Login successful.")
+                        st.rerun()
 
                         st.session_state["_cookie_restore_done"] = False
                         st.query_params["page"] = "checker"
