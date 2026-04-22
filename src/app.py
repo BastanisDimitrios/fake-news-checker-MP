@@ -949,6 +949,7 @@ def delete_session() -> None:
     st.session_state["user_email"] = None
     st.session_state["auth_login_pw"] = ""
     st.session_state["cookie_restore_attempted"] = 0
+    st.query_params.clear()
     st.rerun()
 
 
@@ -1541,10 +1542,10 @@ def auth_gate() -> bool:
                           st.session_state["user_email"] = email_norm
                           st.session_state["_clear_remember_cookies"] = True
 
-                      st.session_state["auth_login_email"] = email_norm
                       st.session_state["cookie_restore_attempted"] = 0
                       st.session_state["_cookie_write_rerun_done"] = False
                       st.session_state["_cookie_clear_rerun_done"] = False
+                      st.query_params["page"] = "checker"
                       st.success("Login successful.")
                       st.rerun()
                     else:
@@ -2717,20 +2718,29 @@ page_labels = {
     "help": "💬 Help",
 }
 
-current_page = st.query_params.get("page", "checker")
+raw_page = st.query_params.get("page", "checker")
+
+if isinstance(raw_page, list):
+    current_page = raw_page[0] if raw_page else "checker"
+else:
+    current_page = raw_page
+
 if current_page not in page_labels:
     current_page = "checker"
 
+page_keys = list(page_labels.keys())
+page_values = list(page_labels.values())
+
 selected_label = st.radio(
     "Navigation",
-    options=list(page_labels.values()),
-    index=list(page_labels.keys()).index(current_page),
+    options=page_values,
+    index=page_keys.index(current_page),
     horizontal=True,
     key="main_nav_radio",
     label_visibility="collapsed",
 )
 
-selected_page = {v: k for k, v in page_labels.items()}[selected_label]
+selected_page = next(k for k, v in page_labels.items() if v == selected_label)
 
 if selected_page != current_page:
     st.query_params["page"] = selected_page
@@ -2746,3 +2756,5 @@ elif selected_page == "about":
     page_about()
 elif selected_page == "help":
     page_help()
+    
+current_page = get_current_page()
