@@ -1878,8 +1878,9 @@ def page_checker(model, vectorizer) -> None:
 
                 st.write("")
                 render_probability_block(p_real, p_fake)
-                st.write(f"Real probability: {p_real:.2%}")
-                st.write(f"Fake probability: {p_fake:.2%}")
+                if show_probs:
+                  st.write(f"Real probability: {p_real:.2%}")
+                  st.write(f"Fake probability: {p_fake:.2%}")
                 st.write("")
                 st.markdown("### 🔍 Key Influencing Words")
 
