@@ -18,6 +18,7 @@ import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+import unicodedata
 
 import extra_streamlit_components as stx
 import smtplib
@@ -1195,15 +1196,42 @@ Fake News Credibility System
 # ============================================================
 # Text cleaning / model
 # ============================================================
+GREEK_STOPWORDS = {
+    "και","να","το","η","ο","οι","τα","της","του","των","την","τον","τις","τους",
+    "σε","στο","στη","στην","στον","στα","με","για","απο","που","πως","ως","οτι",
+    "ειναι","η","μια","μία","ενας","ενα","αλλα","αν","θα","δεν","μη","μην",
+    "τι","οπως","ομως","εδω","εκει","αυτο","αυτη","αυτες","αυτοι","αυτα",
+    "αυτου","αυτης","αυτων","γινεται","εγινε","εχουν","εχει","ειχε","ηταν",
+    "δηλωσε","τονισε","ανεφερε","σημειωσε","μεσω","μεταξυ","προς","κατα",
+    "πιο","πολυ","πολλα","πολλες","καθε","ολη","ολο","ολα","ακομη"
+}
+
+def strip_accents(text: str) -> str:
+    text = unicodedata.normalize("NFD", text)
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+    return unicodedata.normalize("NFC", text)
+  
+  
 def clean_text(text: str) -> str:
     if text is None:
         return ""
+
     text = str(text).lower()
+    text = strip_accents(text)
+
     text = re.sub(r"https?://\S+|www\.\S+", " ", text)
-    text = text.translate(str.maketrans("", "", string.punctuation))
+
+    # Keep English and Greek letters only
+    text = re.sub(r"[^a-zA-Zα-ωΑ-Ω\s]", " ", text)
+
     text = re.sub(r"\d+", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
-    words = [w for w in text.split() if w not in ENGLISH_STOP_WORDS]
+
+    english_sw = {strip_accents(w) for w in ENGLISH_STOP_WORDS}
+    greek_sw = {strip_accents(w) for w in GREEK_STOPWORDS}
+    all_stopwords = english_sw.union(greek_sw)
+
+    words = [w for w in text.split() if w not in all_stopwords and len(w) > 1]
     return " ".join(words)
 
 
