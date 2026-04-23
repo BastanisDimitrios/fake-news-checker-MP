@@ -1212,6 +1212,22 @@ def strip_accents(text: str) -> str:
     return unicodedata.normalize("NFC", text)
   
   
+def detect_language_simple(text: str) -> str:
+    if not text:
+        return "unknown"
+
+    text = strip_accents(str(text).lower())
+
+    greek_chars = sum(1 for ch in text if "α" <= ch <= "ω")
+    latin_chars = sum(1 for ch in text if "a" <= ch <= "z")
+
+    if greek_chars > latin_chars and greek_chars > 20:
+        return "greek"
+    if latin_chars >= greek_chars and latin_chars > 20:
+        return "english"
+    return "unknown"
+  
+  
 def clean_text(text: str) -> str:
     if text is None:
         return ""
@@ -1783,7 +1799,7 @@ def page_checker(model, vectorizer) -> None:
                 """
 <div class="card-lite">
   <div class="section-title">Text Analysis</div>
-  <div class="section-sub">Paste the article text below to evaluate whether the content appears real or fake.</div>
+  <div class="section-sub">Paste article text below. The current machine learning model is more reliable for English text and may be less accurate for Greek text.</div>
 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1821,6 +1837,13 @@ def page_checker(model, vectorizer) -> None:
                 if len(txt) > MAX_TEXT_CHARS:
                     st.error(f"Text is too large. Maximum allowed length is {MAX_TEXT_CHARS:,} characters.")
                     st.stop()
+
+                lang = detect_language_simple(txt)
+
+                if lang == "greek":
+                    st.warning("Greek text detected. The current ML model is mainly trained for English content, so the result may be less reliable.")
+                elif lang == "unknown":
+                    st.info("The text language could not be identified clearly. Prediction reliability may be lower.")
 
                 label, score, p_fake, p_real = predict(model, vectorizer, txt, threshold=threshold)
                 band, tone = credibility_band(score)
@@ -1866,6 +1889,7 @@ def page_checker(model, vectorizer) -> None:
 <div class="result-panel">
   <div class="section-title">Analysis Summary</div>
   <div class="section-sub">
+    Detected language: <b>{lang.title()}</b><br><br>
     The submitted article has been processed through the text classification pipeline and evaluated using the active decision threshold.
     The final outcome suggests a classification of <b>{label}</b>, with an overall credibility score of <b>{score:.2f}%</b>.
     Based on the score range, the content falls under the <b>{band}</b> category.
