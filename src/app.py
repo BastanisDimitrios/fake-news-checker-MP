@@ -24,7 +24,11 @@ import extra_streamlit_components as stx
 import smtplib
 from email.message import EmailMessage
 
-from updater import update_reference_lists
+try:
+    from updater import update_reference_lists
+except:
+    def update_reference_lists():
+        pass
 from credibility_engine import evaluate_source
 
 
