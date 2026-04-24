@@ -2186,9 +2186,10 @@ def page_checker(model, vectorizer) -> None:
             st.write("")
 
             up = st.file_uploader("Upload CSV", type=["csv"], key="csv")
-            text_col = st.text_input("Text column name", value="text", key="csv_col")
 
             df_up = None
+            text_col = None
+
             if up is not None:
                 try:
                     try:
@@ -2199,6 +2200,16 @@ def page_checker(model, vectorizer) -> None:
 
                     st.write("Preview:")
                     st.dataframe(df_up.head(10), use_container_width=True)
+
+                    # Better than text input: user selects the correct column
+                    text_col = st.selectbox(
+                        "Select the text/content column",
+                        options=list(df_up.columns),
+                        index=list(df_up.columns).index("text") if "text" in df_up.columns else 0,
+                        key="csv_col_select",
+                    )
+
+                    st.caption(f"Selected column: {text_col}")
 
                 except Exception as e:
                     st.error("Could not read the CSV file.")
@@ -2212,8 +2223,8 @@ def page_checker(model, vectorizer) -> None:
                     st.warning("Please upload a CSV file first.")
                     st.stop()
 
-                if text_col not in df_up.columns:
-                    st.error(f"Column '{text_col}' was not found. Available columns: {list(df_up.columns)}")
+                if not text_col or text_col not in df_up.columns:
+                    st.error("Please select a valid text/content column.")
                     st.stop()
 
                 df = df_up.copy()
@@ -2230,6 +2241,7 @@ def page_checker(model, vectorizer) -> None:
                 df["Threshold_used"] = threshold
 
                 st.success("Batch prediction completed successfully.")
+
                 st.dataframe(
                     df[[text_col, "Prediction", "Credibility_score", "P_fake", "P_real", "Threshold_used"]].head(50),
                     use_container_width=True,
